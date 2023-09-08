@@ -13,19 +13,39 @@ import {
 import Layout from './layout';
 import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
 import parseHls from '../lib/parseHls';
-import { Switch, Tooltip } from '@mui/material';
+import { LinearProgress } from '@mui/material';
+
+// make a progress bar component using material ui
+function ProgressBar({ progress }: { progress: number }) {
+	console.log(progress);
+	return (
+		<LinearProgress
+			sx={{
+				width: '100%',
+				padding: '5px 0',
+				marginTop: 2,
+				marginLeft: 20,
+				marginRight: 20,
+				borderRadius: 5,
+			}}
+			variant="determinate"
+			value={progress * 100}
+		/>
+	);
+}
 
 export default function DownloadPage({ url }: { url: string }) {
 	const [downloadState, setDownloadState] = useState(START_DOWNLOAD);
 	const [additionalMessage, setAdditionalMessage] = useState<string | null>('');
 	const [downloadBlobUrl, setDownloadBlobUrl] = useState('');
+	const [progress, setProgress] = useState<number | null>(null);
 
 	async function startDownload() {
 		setDownloadState(STARTING_DOWNLOAD);
-		setAdditionalMessage(`[INFO] Job started`);
+		setAdditionalMessage(`Job started`);
 
 		try {
-			setAdditionalMessage(`[INFO] Fetching segments`);
+			setAdditionalMessage(`Fetching segments`);
 
 			let getSegments = await parseHls({ hlsUrl: url });
 			if (getSegments?.type !== SEGMENT)
@@ -37,6 +57,7 @@ export default function DownloadPage({ url }: { url: string }) {
 				uri: string;
 				index: string;
 			}[] = [];
+
 			if (Array.isArray(getSegments.data)) {
 				segments = getSegments.data.map((s: any, i: number) => ({
 					...s,
@@ -46,7 +67,7 @@ export default function DownloadPage({ url }: { url: string }) {
 				console.error('Invalid segment data');
 			}
 
-			setAdditionalMessage(`[INFO] Initializing ffmpeg`);
+			setAdditionalMessage(`Downloading FFmpeg`);
 			const ffmpeg = createFFmpeg({
 				mainName: 'main',
 				corePath:
@@ -55,7 +76,7 @@ export default function DownloadPage({ url }: { url: string }) {
 			});
 
 			await ffmpeg.load();
-			setAdditionalMessage(`[SUCCESS] ffmpeg loaded`);
+			setAdditionalMessage(`FFmpeg loaded`);
 
 			setDownloadState(SEGMENT_STARTING_DOWNLOAD);
 
@@ -66,10 +87,11 @@ export default function DownloadPage({ url }: { url: string }) {
 
 			let successfulSegments: string[] = [];
 
+			setProgress(0);
+			
 			for (let i = 0; i < segmentChunks.length; i++) {
-				setAdditionalMessage(
-					`[INFO] Downloading segment chunks ${i}/${segmentChunks.length} - Chunksize: ${SEGMENT_CHUNK_SIZE}`
-				);
+				setAdditionalMessage(`Downloading segment chunks`);
+				setProgress(i / segmentChunks.length);
 
 				let segmentChunk = segmentChunks[i];
 
@@ -96,15 +118,15 @@ export default function DownloadPage({ url }: { url: string }) {
 					})
 				);
 			}
+			setProgress(1);
 
 			successfulSegments = successfulSegments.sort((a, b) => {
-				debugger;
 				let aIndex = parseInt(a.split('.')[0]);
 				let bIndex = parseInt(b.split('.')[0]);
 				return aIndex - bIndex;
 			});
 
-			setAdditionalMessage(`[INFO] Stiching segments started`);
+			setAdditionalMessage(`Stiching segments`);
 			setDownloadState(SEGMENT_STICHING);
 
 			await ffmpeg.run(
@@ -115,7 +137,7 @@ export default function DownloadPage({ url }: { url: string }) {
 				'output.ts'
 			);
 
-			setAdditionalMessage(`[INFO] Stiching segments finished`);
+			setAdditionalMessage(`Stiching segments finished`);
 
 			successfulSegments.forEach((segment) => {
 				// cleanup
@@ -153,7 +175,7 @@ export default function DownloadPage({ url }: { url: string }) {
 	return (
 		<Layout>
 			<h2 className="text-2xl lg:text-3xl font-bold mb-4">{downloadState}</h2>
-			<code className="border boder-gray-200 bg-gray-100 px-2 rounded-sm break-all text-center py-2 w-full max-w-3xl">
+			<code className="border border-gray-200 bg-gray-100 px-2 rounded-sm break-all text-center py-2 w-full max-w-3xl">
 				{url}
 			</code>
 
@@ -171,6 +193,8 @@ export default function DownloadPage({ url }: { url: string }) {
 			{additionalMessage && (
 				<p className="text-gray-900 mt-5">{additionalMessage}</p>
 			)}
+
+			{progress ? <ProgressBar progress={progress} /> : null}
 
 			{downloadBlobUrl && (
 				<div className="flex gap-2 items-center">
