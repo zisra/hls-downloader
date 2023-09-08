@@ -4,15 +4,12 @@ import { useState, Dispatch } from 'react';
 import { toast } from 'react-hot-toast';
 import { ERROR, PLAYLIST, SEGMENT } from '../constants';
 import parseHls from '../lib/parseHls';
-import RenderCustomHeaders from './customHeader';
 import Layout from './layout';
 
 export default function HomePage({
 	setUrl,
-	setHeaders,
 }: {
 	setUrl: Dispatch<React.SetStateAction<string>>;
-	setHeaders: Dispatch<React.SetStateAction<Record<string, string>>>;
 }) {
 	const [text, settext] = useState('');
 	const [playlist, setPlaylist] = useState<
@@ -23,15 +20,9 @@ export default function HomePage({
 		}[]
 	>([]);
 	const [limitationrender, setLimitationRender] = useState(false);
-	const [customHeadersRender, setCustomHeadersRender] = useState(false);
-	const [customHeaders, setcustomHeaders] = useState({});
 
 	function toggleLimitation() {
 		setLimitationRender(!limitationrender);
-	}
-
-	function toggleCustomHeaders() {
-		setCustomHeadersRender(!customHeadersRender);
 	}
 
 	function closeQualityDialog() {
@@ -40,7 +31,7 @@ export default function HomePage({
 
 	async function validateAndSetUrl() {
 		toast.loading(`Validating...`, { duration: 800 });
-		let data = await parseHls({ hlsUrl: text, headers: customHeaders });
+		let data = await parseHls({ hlsUrl: text });
 		if (!data) {
 			// I am sure the parser lib returning, instead of throwing error
 			toast.error(`Invalid url, Content possibly not parsed!`);
@@ -58,7 +49,6 @@ export default function HomePage({
 			}
 		} else if (data.type === SEGMENT) {
 			setUrl(text);
-			setHeaders(customHeaders);
 		}
 	}
 
@@ -115,7 +105,6 @@ export default function HomePage({
 										className="mr-2 px-2 py-1 rounded-md bg-black text-white"
 										onClick={() => {
 											setUrl(item.uri);
-											setHeaders(customHeaders);
 										}}
 									>
 										{item.name}
@@ -150,33 +139,12 @@ export default function HomePage({
 					</ol>
 				</DialogContent>
 			</Dialog>
-
-			<Dialog
-				open={customHeadersRender}
-				onClose={toggleCustomHeaders}
-				fullWidth
-				maxWidth="sm"
-			>
-				<DialogTitle className="flex justify-between">
-					<span className="text-xl font-bold">Custom headers</span>
-					<button className="text-sm" onClick={toggleCustomHeaders}>
-						<Close />
-					</button>
-				</DialogTitle>
-				<DialogContent>
-					<RenderCustomHeaders
-						customHeaders={customHeaders}
-						setCustomHeaders={setcustomHeaders}
-					/>
-				</DialogContent>
-			</Dialog>
 		</>
 	);
 }
 
 const limitations = [
 	"It may not work on some browsers, Especially on mobile browsers. <a href='https://caniuse.com/sharedarraybuffer' class='underline' target='_blank' rel='noopener'>See supported browsers</a>.",
-	'It does not currently support custom headers.',
 	'Custom cookies will not be possible because the browser will ignore them.',
 	'It is not possible to download live streams.',
 ];

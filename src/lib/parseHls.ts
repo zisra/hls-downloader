@@ -1,21 +1,11 @@
 import { Parser } from 'm3u8-parser';
 import { ERROR, PLAYLIST, SEGMENT } from '../constants';
 
-async function parseHls({
-	hlsUrl,
-	headers = {},
-}: {
-	hlsUrl: string;
-	headers?: Record<string, string>;
-}) {
+async function parseHls({ hlsUrl }: { hlsUrl: string }) {
 	try {
 		let url = new URL(hlsUrl);
 
-		let response = await fetch(url.href, {
-			headers: {
-				...headers,
-			},
-		});
+		let response = await fetch(url.href, {});
 
 		if (!response.ok) {
 			throw new Error(response.statusText);

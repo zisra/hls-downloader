@@ -15,16 +15,8 @@ import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
 import parseHls from '../lib/parseHls';
 import { Switch, Tooltip } from '@mui/material';
 
-export default function DownloadPage({
-	url,
-	headers = {},
-}: {
-	url: string;
-	headers: Record<string, string>;
-}) {
+export default function DownloadPage({ url }: { url: string }) {
 	const [downloadState, setDownloadState] = useState(START_DOWNLOAD);
-	const [sendHeaderWhileFetchingTS, setSendHeaderWhileFetchingTS] =
-		useState(false);
 	const [additionalMessage, setAdditionalMessage] = useState<string | null>('');
 	const [downloadBlobUrl, setDownloadBlobUrl] = useState('');
 
@@ -35,7 +27,7 @@ export default function DownloadPage({
 		try {
 			setAdditionalMessage(`[INFO] Fetching segments`);
 
-			let getSegments = await parseHls({ hlsUrl: url, headers: headers });
+			let getSegments = await parseHls({ hlsUrl: url });
 			if (getSegments?.type !== SEGMENT)
 				throw new Error(`Invalid segment url, Please refresh the page`);
 
@@ -85,11 +77,7 @@ export default function DownloadPage({
 					segmentChunk.map(async (segment) => {
 						try {
 							let fileId = `${segment.index}.ts`;
-							let getFile = await fetch(segment.uri, {
-								headers: {
-									...(sendHeaderWhileFetchingTS ? headers : {}),
-								},
-							});
+							let getFile = await fetch(segment.uri);
 
 							if (!getFile.ok) throw new Error('File failed to fetch');
 
@@ -171,20 +159,6 @@ export default function DownloadPage({
 
 			{downloadState === START_DOWNLOAD && (
 				<div className="flex gap-5 items-center mt-5">
-					{Object.keys(headers).length > 0 && (
-						<Tooltip title="Send custom header while fetching TS segments (If you are facing error, try toggling)">
-							<button
-								className="flex items-center"
-								onClick={() =>
-									setSendHeaderWhileFetchingTS(!sendHeaderWhileFetchingTS)
-								}
-							>
-								<Switch checked={sendHeaderWhileFetchingTS} />
-								Send header
-							</button>
-						</Tooltip>
-					)}
-
 					<button
 						className="px-4 py-1.5 bg-gray-900 hover:bg-gray-700 text-white rounded-md"
 						onClick={startDownload}
