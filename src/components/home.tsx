@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogTitle, TextField } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import { useState, Dispatch } from 'react';
+import { useState, Dispatch, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { ERROR, PLAYLIST, SEGMENT } from '../constants';
 import parseHls from '../lib/parseHls';
@@ -11,18 +11,28 @@ export default function HomePage({
 }: {
 	setUrl: Dispatch<React.SetStateAction<string>>;
 }) {
-	const [text, settext] = useState('');
+	const [hlsUrl, setHlsUrl] = useState('');
+
+	useEffect(() => {
+		const urlParams = new URLSearchParams(window.location.search);
+		const destinationUrl = urlParams.get('destination');
+		if (destinationUrl) {
+			setHlsUrl(destinationUrl);
+		}
+	}, []);
+
 	const [playlist, setPlaylist] = useState<
 		{
 			name: string;
-			bandwidth: number;
+			bandwidth: string;
 			uri: string;
 		}[]
 	>([]);
-	const [limitationrender, setLimitationRender] = useState(false);
+
+	const [limitationRender, setLimitationRender] = useState(false);
 
 	function toggleLimitation() {
-		setLimitationRender(!limitationrender);
+		setLimitationRender(!limitationRender);
 	}
 
 	function closeQualityDialog() {
@@ -30,14 +40,15 @@ export default function HomePage({
 	}
 
 	async function validateAndSetUrl() {
-		toast.loading(`Validating...`, { duration: 800 });
-		let data = await parseHls({ hlsUrl: text });
+		const validatingToast = toast.loading(`Validating...`, { duration: 800 });
+		let data = await parseHls({ hlsUrl: hlsUrl });
 		if (!data) {
 			// I am sure the parser lib returning, instead of throwing error
 			toast.error(`Invalid url, Content possibly not parsed!`);
 			return;
 		}
 		if (data.type === ERROR) {
+			toast.dismiss(validatingToast);
 			toast.error('Something went wrong');
 		} else if (data.type === PLAYLIST) {
 			if (!data.data.length) {
@@ -48,7 +59,7 @@ export default function HomePage({
 				setPlaylist(data.data);
 			}
 		} else if (data.type === SEGMENT) {
-			setUrl(text);
+			setUrl(hlsUrl);
 		}
 	}
 
@@ -62,8 +73,8 @@ export default function HomePage({
 						label="HLS URI"
 						fullWidth
 						size="small"
-						value={text}
-						onChange={(e) => settext(e.target.value)}
+						value={hlsUrl}
+						onChange={(e) => setHlsUrl(e.target.value)}
 						InputProps={{
 							endAdornment: (
 								<button
@@ -95,29 +106,31 @@ export default function HomePage({
 				</DialogTitle>
 				<DialogContent>
 					<div className="flex flex-wrap justify-center items-center">
-						{(playlist || []).map((item) => {
-							return (
-								<div
-									className="flex justify-between items-center mt-2"
-									key={item.bandwidth}
-								>
-									<button
-										className="mr-2 px-2 py-1 rounded-md bg-black text-white"
-										onClick={() => {
-											setUrl(item.uri);
-										}}
+						{(playlist || [])
+							.sort((a, b) => parseInt(a.bandwidth) - parseInt(b.bandwidth))
+							.map((item) => {
+								return (
+									<div
+										className="flex justify-between items-center mt-2"
+										key={item.bandwidth}
 									>
-										{item.name}
-									</button>
-								</div>
-							);
-						})}
+										<button
+											className="mr-2 px-2 py-1 rounded-md bg-black text-white"
+											onClick={() => {
+												setUrl(item.uri);
+											}}
+										>
+											{item.name}
+										</button>
+									</div>
+								);
+							})}
 					</div>
 				</DialogContent>
 			</Dialog>
 
 			<Dialog
-				open={limitationrender}
+				open={limitationRender}
 				onClose={toggleLimitation}
 				fullWidth
 				maxWidth="sm"
